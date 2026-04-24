@@ -159,6 +159,29 @@ builder.Services.AddSignalR();
 
 var app = builder.Build();
 
+// Apply pending EF Core migrations on startup (Production Docker).
+// This prevents schema drift issues like "Invalid column name 'SortOrder'".
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<OtoContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("DbMigrations");
+
+    const int maxAttempts = 10;
+    for (var attempt = 1; attempt <= maxAttempts; attempt++)
+    {
+        try
+        {
+            db.Database.Migrate();
+            break;
+        }
+        catch (Exception ex) when (attempt < maxAttempts)
+        {
+            logger.LogWarning(ex, "Database migration attempt {Attempt}/{MaxAttempts} failed. Retrying...", attempt, maxAttempts);
+            Thread.Sleep(TimeSpan.FromSeconds(3));
+        }
+    }
+}
+
 
 
 // Configure the HTTP request pipeline.
