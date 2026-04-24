@@ -1,0 +1,9 @@
+* text=auto
+
+# Keep configs & scripts LF (important for Docker/Linux)
+*.conf text eol=lf
+*.sh text eol=lf
+
+# Explicit: nginx config
+fe/nginx.conf text eol=lf
+

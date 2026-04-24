@@ -1,0 +1,40 @@
+services:
+  api:
+    build:
+      context: ./be/OtoBackend
+      dockerfile: Dockerfile
+    ports:
+      - "5239:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      # Trỏ tới SQL Server đã chạy sẵn trên server
+      ConnectionStrings__DefaultConnection: "Server=${DB_HOST:-100.93.2.3},${DB_PORT:-1433};Database=${DB_NAME:-oto};User Id=${DB_USER:-sa};Password=${DB_PASSWORD:-Admin@123};TrustServerCertificate=True;"
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./fe
+      dockerfile: Dockerfile
+      args:
+        # URL public mà browser gọi tới API (nên là domain/IP public của server)
+        VITE_API_BASE_URL: "${PUBLIC_API_BASE_URL:-https://carweb-api.34.142.180.166.nip.io}"
+    ports:
+      - "${WEB_PORT:-8081}:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  fe-admin:
+    build:
+      context: ./fe-admin
+      dockerfile: Dockerfile
+      args:
+        # URL public mà browser gọi tới API (nên là domain/IP public của server)
+        VITE_API_BASE_URL: "${PUBLIC_API_BASE_URL:-https://carweb-api.34.142.180.166.nip.io}"
+    ports:
+      - "${FE_ADMIN_PORT:-8082}:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+

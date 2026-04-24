@@ -1,0 +1,152 @@
+﻿using CoreEntities.Models;
+using LogicBusiness.Interfaces.Repositories;
+using Microsoft.EntityFrameworkCore;
+using SqlServer.DBContext;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace SqlServer.Repositories
+{
+    public class UserRepository : IUserRepository
+    {
+        private readonly OtoContext _context;
+
+        public UserRepository(OtoContext context)
+        {
+            _context = context;
+        }
+
+        public async Task<User> GetUserByUsernameAsync(string username)
+        {
+            return await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
+        }
+
+        public async Task<bool> UserExistsAsync(string username, string email)
+        {
+            return await _context.Users.AnyAsync(u => u.Username == username || u.Email == email);
+        }
+
+        public async Task AddUserAsync(User user)
+        {
+            await _context.Users.AddAsync(user);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<IEnumerable<User>> GetAllActiveUsersAsync()
+        {
+            return await _context.Users
+                .Where(u => u.IsDeleted == false)
+                .OrderByDescending(u => u.CreatedAt)
+                .ToListAsync();
+        }
+
+        public async Task<User?> GetUserByIdAsync(int userId)
+        {
+            return await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId);
+        }
+
+        public async Task<User?> GetUserByPhoneAsync(string phone)
+        {
+            if (string.IsNullOrWhiteSpace(phone)) return null;
+            var p = phone.Trim();
+
+            // Support common variants: "0xxxxxxxxx" <-> "+84xxxxxxxxx" / "84xxxxxxxxx"
+            var candidates = new List<string> { p };
+            if (p.StartsWith("+84") && p.Length > 3) candidates.Add("0" + p.Substring(3));
+            if (p.StartsWith("84") && p.Length > 2) candidates.Add("0" + p.Substring(2));
+            if (p.StartsWith("0") && p.Length > 1)
+            {
+                candidates.Add("+84" + p.Substring(1));
+                candidates.Add("84" + p.Substring(1));
+            }
+
+            candidates = candidates
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
+                .Distinct()
+                .Take(6)
+                .ToList();
+
+            return await _context.Users.FirstOrDefaultAsync(u => u.Phone != null && candidates.Contains(u.Phone));
+        }
+
+        public async Task UpdateUserAsync(User user)
+        {
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync();
+        }
+
+        // LỌC USER CÓ PHÂN QUYỀN
+        public async Task<(IEnumerable<User> Users, int TotalCount)> GetFilteredUsersAdminAsync(
+            string userType, bool isDeleted, string? search, int page, int pageSize,
+            string currentUserRole, int? currentUserShowroomId, int? filterShowroomId = null)
+        {
+            var query = _context.Users.AsQueryable();
+
+            // Lọc theo trạng thái xóa (Thùng rác hay Không)
+            query = query.Where(u => u.IsDeleted == isDeleted);
+
+            // TÁCH KHU VỰC 
+            if (userType == "Staff")
+            {
+                // Chỉ bốc ra những ông là nhân sự (Sales hoặc Manager)
+                query = query.Where(u => u.Role == "ShowroomManager" || u.Role == "ShowroomSales");
+
+                // Nếu người đang xem là Manager -> CHỈ ĐƯỢC THẤY NHÂN VIÊN SHOWROOM MÌNH
+                if (currentUserRole == "ShowroomManager" && currentUserShowroomId.HasValue)
+                {
+                    query = query.Where(u => u.ShowroomId == currentUserShowroomId.Value);
+                }
+                // Nếu là Admin và có chọn Showroom từ Dropdown để lọc
+                else if (filterShowroomId.HasValue && filterShowroomId.Value > 0)
+                {
+                    query = query.Where(u => u.ShowroomId == filterShowroomId.Value);
+                }
+            }
+            else if (userType == "Customer")
+            {
+                // Chỉ bốc ra những ông là khách hàng
+                query = query.Where(u => u.Role == "Customer");
+            }
+            // Lọc theo từ khóa tìm kiếm (Search)
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var kw = $"%{search.Trim()}%"; // Bọc % 2 đầu để tìm kiếm LIKE trong SQL
+
+                query = query.Where(u =>
+                    (u.Username != null && EF.Functions.Like(u.Username, kw)) ||
+                    (u.Email != null && EF.Functions.Like(u.Email, kw)) ||
+                    (u.FullName != null && EF.Functions.Like(u.FullName, kw))
+                );
+            }
+            // Đếm tổng số lượng (để React làm phân trang)
+            int totalCount = await query.CountAsync();
+
+            // Phân trang (Pagination) và sắp xếp
+            var users = await query
+                .OrderByDescending(u => u.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (users, totalCount);
+        }
+
+        public async Task<IEnumerable<User>> GetStaffForChatAsync()
+        {
+            // Chỉ lấy những người có quyền Sales hoặc Manager và tài khoản đang Active
+            return await _context.Users
+                .Where(u => (u.Role == "ShowroomSales" || u.Role == "ShowroomManager") && u.Status == "Active")
+                .ToListAsync();
+        }
+
+        public async Task HardDeleteUserAsync(User user)
+        {
+            _context.Users.Remove(user);
+            await _context.SaveChangesAsync();
+        }
+    }
+}

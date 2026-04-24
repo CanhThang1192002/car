@@ -1,0 +1,23 @@
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+
+namespace CoreEntities.Models;
+
+public partial class ChatMessage
+{
+    public int MessageId { get; set; }
+
+    public int SessionId { get; set; }
+
+    public string SenderType { get; set; } = null!;
+
+    public string MessageText { get; set; } = null!;
+
+    public DateTime? CreatedAt { get; set; }
+
+    [MaxLength(100)]
+    public string? IntentLabel { get; set; }
+
+    public virtual ChatSession Session { get; set; } = null!;
+}
