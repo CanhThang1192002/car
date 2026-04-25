@@ -11,7 +11,7 @@ namespace OtoBackend.Controllers.Admin
 {
     [Route("api/admin/[controller]")]
     [ApiController]
-    [Authorize(Roles = "Admin, ShowroomManager")] // 👈 Chỉ Sếp mới được vào đây chốt giá
+    [Authorize(Roles = "Admin, ShowroomManager, SalesManager")] // 👈 Chỉ Sếp mới được vào đây chốt giá
     public class ConsignmentsController : ControllerBase
     {
         private readonly IConsignmentService _consignService;

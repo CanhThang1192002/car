@@ -17,6 +17,8 @@ import { PromotionsPage } from '../../pages/promotions/PromotionsPage'
 import { NotificationsPage } from '../../pages/notifications/NotificationsPage'
 import { InventoriesPage } from '../../pages/inventories/InventoriesPage'
 import { ReviewsPage } from '../../pages/reviews/ReviewsPage'
+import { ForbiddenPage } from '../../pages/ForbiddenPage'
+import { RequireRole } from './RequireRole'
 
 export const routes: RouteObject[] = [
   {
@@ -24,22 +26,121 @@ export const routes: RouteObject[] = [
     element: <LoginPage />,
   },
   {
-    element: <AdminLayout />,
+    path: '/403',
+    element: <ForbiddenPage />,
+  },
+  {
+    element: (
+      <RequireRole allowed={['Admin', 'ShowroomManager', 'ShowroomSales', 'SalesManager', 'Sales', 'Technician']}>
+        <AdminLayout />
+      </RequireRole>
+    ),
     children: [
       { path: '/', element: <DashboardPage /> },
-      { path: '/banners', element: <BannersPage /> },
-      { path: '/cars', element: <CarsListPage /> },
-      { path: '/cars/new', element: <CarsNewPage /> },
-      { path: '/cars/:id/edit', element: <CarsEditPage /> },
-      { path: '/showrooms', element: <ShowroomsPage /> },
-      { path: '/orders', element: <OrdersPage /> },
-      { path: '/bookings', element: <BookingsPage /> },
-      { path: '/users', element: <UsersPage /> },
-      { path: '/articles', element: <ArticlesPage /> },
-      { path: '/promotions', element: <PromotionsPage /> },
-      { path: '/notifications', element: <NotificationsPage /> },
-      { path: '/inventories', element: <InventoriesPage /> },
-      { path: '/reviews', element: <ReviewsPage /> },
+      {
+        path: '/banners',
+        element: (
+          <RequireRole allowed={['Admin']}>
+            <BannersPage />
+          </RequireRole>
+        ),
+      },
+      {
+        path: '/cars',
+        element: (
+          <RequireRole allowed={['Admin', 'ShowroomManager', 'ShowroomSales', 'SalesManager', 'Sales', 'Technician']}>
+            <CarsListPage />
+          </RequireRole>
+        ),
+      },
+      {
+        path: '/cars/new',
+        element: (
+          <RequireRole allowed={['Admin', 'ShowroomManager', 'SalesManager']}>
+            <CarsNewPage />
+          </RequireRole>
+        ),
+      },
+      {
+        path: '/cars/:id/edit',
+        element: (
+          <RequireRole allowed={['Admin', 'ShowroomManager', 'SalesManager']}>
+            <CarsEditPage />
+          </RequireRole>
+        ),
+      },
+      {
+        path: '/showrooms',
+        element: (
+          <RequireRole allowed={['Admin', 'ShowroomManager', 'SalesManager']}>
+            <ShowroomsPage />
+          </RequireRole>
+        ),
+      },
+      {
+        path: '/orders',
+        element: (
+          <RequireRole allowed={['Admin', 'ShowroomManager', 'ShowroomSales', 'SalesManager', 'Sales']}>
+            <OrdersPage />
+          </RequireRole>
+        ),
+      },
+      {
+        path: '/bookings',
+        element: (
+          <RequireRole allowed={['Admin', 'ShowroomManager', 'ShowroomSales', 'SalesManager', 'Sales']}>
+            <BookingsPage />
+          </RequireRole>
+        ),
+      },
+      {
+        path: '/users',
+        element: (
+          <RequireRole allowed={['Admin', 'ShowroomManager', 'SalesManager']}>
+            <UsersPage />
+          </RequireRole>
+        ),
+      },
+      {
+        path: '/articles',
+        element: (
+          <RequireRole allowed={['Admin']}>
+            <ArticlesPage />
+          </RequireRole>
+        ),
+      },
+      {
+        path: '/promotions',
+        element: (
+          <RequireRole allowed={['Admin']}>
+            <PromotionsPage />
+          </RequireRole>
+        ),
+      },
+      {
+        path: '/notifications',
+        element: (
+          <RequireRole allowed={['Admin']}>
+            <NotificationsPage />
+          </RequireRole>
+        ),
+      },
+      {
+        path: '/inventories',
+        element: (
+          <RequireRole allowed={['Admin', 'ShowroomManager', 'ShowroomSales', 'SalesManager', 'Sales', 'Technician']}>
+            <InventoriesPage />
+          </RequireRole>
+        ),
+      },
+      {
+        path: '/reviews',
+        element: (
+          <RequireRole allowed={['Admin']}>
+            <ReviewsPage />
+          </RequireRole>
+        ),
+      },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

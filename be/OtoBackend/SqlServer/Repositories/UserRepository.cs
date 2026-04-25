@@ -93,10 +93,15 @@ namespace SqlServer.Repositories
             if (userType == "Staff")
             {
                 // Chỉ bốc ra những ông là nhân sự (Sales hoặc Manager)
-                query = query.Where(u => u.Role == "ShowroomManager" || u.Role == "ShowroomSales");
+                query = query.Where(u =>
+                    u.Role == "ShowroomManager" ||
+                    u.Role == "ShowroomSales" ||
+                    u.Role == "SalesManager" ||
+                    u.Role == "Sales" ||
+                    u.Role == "Technician");
 
                 // Nếu người đang xem là Manager -> CHỈ ĐƯỢC THẤY NHÂN VIÊN SHOWROOM MÌNH
-                if (currentUserRole == "ShowroomManager" && currentUserShowroomId.HasValue)
+                if ((currentUserRole == "ShowroomManager" || currentUserRole == "SalesManager") && currentUserShowroomId.HasValue)
                 {
                     query = query.Where(u => u.ShowroomId == currentUserShowroomId.Value);
                 }
@@ -139,7 +144,13 @@ namespace SqlServer.Repositories
         {
             // Chỉ lấy những người có quyền Sales hoặc Manager và tài khoản đang Active
             return await _context.Users
-                .Where(u => (u.Role == "ShowroomSales" || u.Role == "ShowroomManager") && u.Status == "Active")
+                .Where(u =>
+                    (u.Role == "ShowroomSales" ||
+                     u.Role == "ShowroomManager" ||
+                     u.Role == "Sales" ||
+                     u.Role == "SalesManager" ||
+                     u.Role == "Technician") &&
+                    u.Status == "Active")
                 .ToListAsync();
         }
 

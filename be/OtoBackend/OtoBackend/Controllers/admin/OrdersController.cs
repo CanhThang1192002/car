@@ -7,7 +7,7 @@ namespace OtoBackend.Controllers.admin
 {
     [Route("api/admin/[controller]")]
     [ApiController]
-    [Authorize(Roles = "Admin, ShowroomManager, ShowroomSales")]
+    [Authorize(Roles = "Admin, ShowroomManager, ShowroomSales, SalesManager, Sales")]
     public class OrdersController : ControllerBase
     {
         private readonly IOrderAdminService _adminService;

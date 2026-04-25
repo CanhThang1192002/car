@@ -3,6 +3,8 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { Bell, CalendarDays, Gift, Image, LayoutDashboard, LogOut, Newspaper, Package, ShoppingBag, Star, Store, Users } from 'lucide-react'
 
 import { clearAuth } from '../../app/auth/authStore'
+import { useAuth } from '../../app/auth/useAuth'
+import { isInRole } from '../../app/auth/roles'
 
 function NavItem({
   to,
@@ -56,6 +58,17 @@ function NavItem({
 
 export function AdminSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const navigate = useNavigate()
+  const auth = useAuth()
+  const userRole = auth.user?.role
+
+  const canSeeCars = isInRole(userRole, ['Admin', 'ShowroomManager', 'ShowroomSales', 'SalesManager', 'Sales', 'Technician'])
+  const canManageCars = isInRole(userRole, ['Admin', 'ShowroomManager', 'SalesManager'])
+  const canSeeShowrooms = isInRole(userRole, ['Admin', 'ShowroomManager', 'SalesManager'])
+  const canSeeOrders = isInRole(userRole, ['Admin', 'ShowroomManager', 'ShowroomSales', 'SalesManager', 'Sales'])
+  const canSeeBookings = isInRole(userRole, ['Admin', 'ShowroomManager', 'ShowroomSales', 'SalesManager', 'Sales'])
+  const canSeeUsers = isInRole(userRole, ['Admin', 'ShowroomManager', 'SalesManager'])
+  const canSeeInventories = isInRole(userRole, ['Admin', 'ShowroomManager', 'ShowroomSales', 'SalesManager', 'Sales', 'Technician'])
+  const isAdmin = isInRole(userRole, ['Admin'])
 
   return (
     <div className="flex h-full flex-col">
@@ -72,20 +85,22 @@ export function AdminSidebar({ onNavigate }: { onNavigate?: () => void }) {
       <div className="px-3 pb-3" onClick={onNavigate}>
         <div className="space-y-2.5">
           <NavItem to="/" label="Tổng quan" icon={<LayoutDashboard size={16} />} />
-          <NavItem to="/banners" label="Banner" icon={<Image size={16} />} />
-          <NavItem to="/cars" label="Xe" icon={<Package size={16} />} end={false} />
+          {isAdmin ? <NavItem to="/banners" label="Banner" icon={<Image size={16} />} /> : null}
+          {canSeeCars ? <NavItem to="/cars" label="Xe" icon={<Package size={16} />} end={false} /> : null}
+          {/* Các action tạo/sửa xe nằm trong trang xe; route đã chặn theo canManageCars */}
+          {canManageCars ? null : null}
         </div>
 
         <div className="mt-2 space-y-2.5">
-          <NavItem to="/showrooms" label="Showroom" icon={<Store size={16} />} />
-          <NavItem to="/orders" label="Đơn hàng" icon={<ShoppingBag size={16} />} />
-          <NavItem to="/bookings" label="Đặt lịch" icon={<CalendarDays size={16} />} />
-          <NavItem to="/users" label="Người dùng" icon={<Users size={16} />} />
-          <NavItem to="/inventories" label="Tồn kho" icon={<Store size={16} />} />
-          <NavItem to="/articles" label="Bài viết" icon={<Newspaper size={16} />} />
-          <NavItem to="/promotions" label="Khuyến mãi" icon={<Gift size={16} />} />
-          <NavItem to="/notifications" label="Thông báo" icon={<Bell size={16} />} />
-          <NavItem to="/reviews" label="Đánh giá" icon={<Star size={16} />} />
+          {canSeeShowrooms ? <NavItem to="/showrooms" label="Showroom" icon={<Store size={16} />} /> : null}
+          {canSeeOrders ? <NavItem to="/orders" label="Đơn hàng" icon={<ShoppingBag size={16} />} /> : null}
+          {canSeeBookings ? <NavItem to="/bookings" label="Đặt lịch" icon={<CalendarDays size={16} />} /> : null}
+          {canSeeUsers ? <NavItem to="/users" label="Người dùng" icon={<Users size={16} />} /> : null}
+          {canSeeInventories ? <NavItem to="/inventories" label="Tồn kho" icon={<Store size={16} />} /> : null}
+          {isAdmin ? <NavItem to="/articles" label="Bài viết" icon={<Newspaper size={16} />} /> : null}
+          {isAdmin ? <NavItem to="/promotions" label="Khuyến mãi" icon={<Gift size={16} />} /> : null}
+          {isAdmin ? <NavItem to="/notifications" label="Thông báo" icon={<Bell size={16} />} /> : null}
+          {isAdmin ? <NavItem to="/reviews" label="Đánh giá" icon={<Star size={16} />} /> : null}
         </div>
       </div>
 

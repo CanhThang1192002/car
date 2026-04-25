@@ -11,35 +11,41 @@ namespace SqlServer.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.CreateTable(
-                name: "CarPricingVersions",
-                columns: table => new
-                {
-                    PricingVersionId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    CarId = table.Column<int>(type: "int", nullable: false),
-                    VersionName = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
-                    PriceVnd = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    SortOrder = table.Column<int>(type: "int", nullable: false),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false, defaultValue: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime", nullable: true, defaultValueSql: "(getdate())"),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime", nullable: true, defaultValueSql: "(getdate())")
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_CarPricingVersions", x => x.PricingVersionId);
-                    table.ForeignKey(
-                        name: "FK_CarPricingVersions_Cars",
-                        column: x => x.CarId,
-                        principalTable: "Cars",
-                        principalColumn: "CarId",
-                        onDelete: ReferentialAction.Cascade);
-                });
+            // Make this migration safe to run on databases where the table was created manually before
+            // (or migrations history got out of sync).
+            migrationBuilder.Sql(
+                """
+                IF OBJECT_ID(N'[dbo].[CarPricingVersions]', N'U') IS NULL
+                BEGIN
+                    CREATE TABLE [dbo].[CarPricingVersions] (
+                        [PricingVersionId] int NOT NULL IDENTITY,
+                        [CarId] int NOT NULL,
+                        [VersionName] nvarchar(255) NOT NULL,
+                        [PriceVnd] decimal(18,2) NOT NULL,
+                        [SortOrder] int NOT NULL,
+                        [IsActive] bit NOT NULL CONSTRAINT [DF_CarPricingVersions_IsActive] DEFAULT CAST(1 AS bit),
+                        [CreatedAt] datetime NULL CONSTRAINT [DF_CarPricingVersions_CreatedAt] DEFAULT ((getdate())),
+                        [UpdatedAt] datetime NULL CONSTRAINT [DF_CarPricingVersions_UpdatedAt] DEFAULT ((getdate())),
+                        CONSTRAINT [PK_CarPricingVersions] PRIMARY KEY ([PricingVersionId]),
+                        CONSTRAINT [FK_CarPricingVersions_Cars] FOREIGN KEY ([CarId]) REFERENCES [dbo].[Cars] ([CarId]) ON DELETE CASCADE
+                    );
+                END
 
-            migrationBuilder.CreateIndex(
-                name: "IX_CarPricingVersions_CarId",
-                table: "CarPricingVersions",
-                column: "CarId");
+                IF COL_LENGTH(N'[dbo].[CarPricingVersions]', N'SortOrder') IS NULL
+                BEGIN
+                    ALTER TABLE [dbo].[CarPricingVersions] ADD [SortOrder] int NOT NULL CONSTRAINT [DF_CarPricingVersions_SortOrder] DEFAULT (0);
+                END
+
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM sys.indexes
+                    WHERE name = N'IX_CarPricingVersions_CarId'
+                      AND object_id = OBJECT_ID(N'[dbo].[CarPricingVersions]')
+                )
+                BEGIN
+                    CREATE INDEX [IX_CarPricingVersions_CarId] ON [dbo].[CarPricingVersions] ([CarId]);
+                END
+                """);
 
             migrationBuilder.Sql(
                 """
@@ -75,8 +81,13 @@ namespace SqlServer.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "CarPricingVersions");
+            migrationBuilder.Sql(
+                """
+                IF OBJECT_ID(N'[dbo].[CarPricingVersions]', N'U') IS NOT NULL
+                BEGIN
+                    DROP TABLE [dbo].[CarPricingVersions];
+                END
+                """);
         }
     }
 }

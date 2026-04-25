@@ -11,7 +11,7 @@ namespace OtoBackend.Controllers.Admin
     [Route("api/admin/[controller]")]
     [ApiController]
     // 👇 Nới lỏng cửa cho cả Manager vào, Service sẽ tự phân xử bên trong
-    [Authorize(Roles = "Admin, ShowroomManager")]
+    [Authorize(Roles = "Admin, ShowroomManager, SalesManager")]
     public class UsersController : ControllerBase
     {
         private readonly IUserService _userService;

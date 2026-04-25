@@ -11,7 +11,7 @@ namespace OtoBackend.Controllers.Admin
 {
     [Route("api/admin/[controller]")]
     [ApiController]
-    [Authorize(Roles = "Admin, ShowroomManager, ShowroomSales")]
+    [Authorize(Roles = "Admin, ShowroomManager, ShowroomSales, SalesManager, Sales, Technician")]
     public class CarsController : ControllerBase
     {
         private readonly ICarAdminService _adminService;
@@ -237,7 +237,7 @@ namespace OtoBackend.Controllers.Admin
 
         /// SẾP DUYỆT XE: Cho phép xe hiển thị lên Web
         [HttpPut("{id}/approve")]
-        [Authorize(Roles = "Admin, ShowroomManager")]
+        [Authorize(Roles = "Admin, ShowroomManager, SalesManager")]
         public async Task<IActionResult> ApproveCar(int id)
         {
 
@@ -254,7 +254,7 @@ namespace OtoBackend.Controllers.Admin
 
         /// SẾP TỪ CHỐI XE: Trả về cho nhân viên sửa lại kèm lý do
         [HttpPut("{id}/reject")]
-        [Authorize(Roles = "Admin, ShowroomManager")]
+        [Authorize(Roles = "Admin, ShowroomManager, SalesManager")]
         public async Task<IActionResult> RejectCar(int id, [FromBody] RejectRequestDto request)
         {
             if (string.IsNullOrWhiteSpace(request.Reason))
@@ -271,7 +271,7 @@ namespace OtoBackend.Controllers.Admin
 
         /// SẾP ĐỔI TRẠNG THÁI NHANH: Thích xe thành Coming Soon hay Nháp đều được
         [HttpPut("{id}/change-status")]
-        [Authorize(Roles = "Admin, ShowroomManager")]
+        [Authorize(Roles = "Admin, ShowroomManager, SalesManager")]
         public async Task<IActionResult> ChangeCarStatus(int id, [FromBody] ChangeStatusRequestDto request)
         {
             var result = await _adminService.ChangeCarStatusAsync(id, request.NewStatus);

@@ -146,7 +146,16 @@ export function UsersPage() {
       fullName: (u.fullName ?? '').toString(),
       email: u.email ?? '',
       phone: u.phone ?? '',
-      role: (u.role as any) === 'ShowroomManager' ? 'ShowroomManager' : 'ShowroomSales',
+      role:
+        (u.role as any) === 'ShowroomManager'
+          ? 'ShowroomManager'
+          : (u.role as any) === 'SalesManager'
+            ? 'SalesManager'
+            : (u.role as any) === 'Technician'
+              ? 'Technician'
+              : (u.role as any) === 'Sales'
+                ? 'Sales'
+                : 'ShowroomSales',
       showroomId: Number(u.showroomId ?? 0),
       status: (u.status as any) === 'Inactive' ? 'Inactive' : 'Active',
     })
@@ -546,13 +555,25 @@ export function UsersPage() {
                       onChange={(e) =>
                         setCreateForm((f) => ({
                           ...f,
-                          role: e.target.value === 'ShowroomManager' ? 'ShowroomManager' : 'ShowroomSales',
+                          role:
+                            e.target.value === 'ShowroomManager'
+                              ? 'ShowroomManager'
+                              : e.target.value === 'SalesManager'
+                                ? 'SalesManager'
+                                : e.target.value === 'Technician'
+                                  ? 'Technician'
+                                  : e.target.value === 'Sales'
+                                    ? 'Sales'
+                                    : 'ShowroomSales',
                         }))
                       }
                       className="mt-2 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/30 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50"
                     >
-                      <option value="ShowroomSales">Nhân viên bán hàng</option>
-                      <option value="ShowroomManager">Quản lý chi nhánh</option>
+                      <option value="ShowroomSales">Nhân viên bán hàng (Showroom)</option>
+                      <option value="ShowroomManager">Quản lý chi nhánh (Showroom)</option>
+                      <option value="Sales">Sale</option>
+                      <option value="SalesManager">Quản lý sale</option>
+                      <option value="Technician">Nhân viên kỹ thuật</option>
                     </select>
                   </div>
 
@@ -615,15 +636,27 @@ export function UsersPage() {
                       onChange={(e) =>
                         setEditForm((f) => ({
                           ...f,
-                          role: e.target.value === 'ShowroomManager' ? 'ShowroomManager' : 'ShowroomSales',
+                          role:
+                            e.target.value === 'ShowroomManager'
+                              ? 'ShowroomManager'
+                              : e.target.value === 'SalesManager'
+                                ? 'SalesManager'
+                                : e.target.value === 'Technician'
+                                  ? 'Technician'
+                                  : e.target.value === 'Sales'
+                                    ? 'Sales'
+                                    : 'ShowroomSales',
                         }))
                       }
                       className="mt-2 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/30 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50"
                       disabled={!isAdmin}
                       title={!isAdmin ? 'Quản lý không được đổi vai trò' : undefined}
                     >
-                      <option value="ShowroomSales">Nhân viên bán hàng</option>
-                      <option value="ShowroomManager">Quản lý chi nhánh</option>
+                      <option value="ShowroomSales">Nhân viên bán hàng (Showroom)</option>
+                      <option value="ShowroomManager">Quản lý chi nhánh (Showroom)</option>
+                      <option value="Sales">Sale</option>
+                      <option value="SalesManager">Quản lý sale</option>
+                      <option value="Technician">Nhân viên kỹ thuật</option>
                     </select>
                   </div>
 

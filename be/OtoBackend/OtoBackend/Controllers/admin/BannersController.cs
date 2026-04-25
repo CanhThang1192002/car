@@ -8,7 +8,7 @@ namespace OtoBackend.Controllers.Admin
 {
     [Route("api/admin/[controller]")]
     [ApiController]
-    [Authorize(Roles = "Admin, ShowroomManager")]
+    [Authorize(Roles = "Admin, ShowroomManager, SalesManager")]
     public class BannersController : ControllerBase
     {
         private readonly IBannerAdminService _service;

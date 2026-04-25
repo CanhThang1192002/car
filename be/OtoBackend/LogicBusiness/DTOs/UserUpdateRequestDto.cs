@@ -11,7 +11,7 @@ namespace LogicBusiness.DTOs
 
         // Staff roles only
         [Required]
-        [RegularExpression("^(ShowroomManager|ShowroomSales)$")]
+        [RegularExpression("^(ShowroomManager|ShowroomSales|SalesManager|Sales|Technician)$")]
         public string Role { get; set; } = null!;
 
         [Required]

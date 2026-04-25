@@ -40,7 +40,7 @@ export type CreateAdminStaffInput = {
   fullName: string
   email?: string | null
   phone?: string | null
-  role: 'ShowroomManager' | 'ShowroomSales'
+  role: 'ShowroomManager' | 'ShowroomSales' | 'SalesManager' | 'Sales' | 'Technician'
   showroomId: number
 }
 
@@ -48,7 +48,7 @@ export type UpdateAdminStaffInput = {
   fullName: string
   email?: string | null
   phone?: string | null
-  role: 'ShowroomManager' | 'ShowroomSales'
+  role: 'ShowroomManager' | 'ShowroomSales' | 'SalesManager' | 'Sales' | 'Technician'
   showroomId: number
   status?: 'Active' | 'Inactive' | null
 }

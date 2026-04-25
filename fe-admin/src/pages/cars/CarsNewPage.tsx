@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom'
 
 import { http } from '../../services/http/http'
 import type { CarCondition, CarStatus } from '../../services/cars/cars'
+import { env } from '../../lib/env'
 
 type SpecRow = { category: string; specName: string; specValue: string }
 type PricingRow = { versionName: string; priceVnd: string; sortOrder: string; isActive: boolean }
@@ -15,6 +16,23 @@ type GalleryMetaRow = { title: string; description: string; imageType: string; i
 type GalleryType = 'Color' | 'Overview' | 'Exterior' | 'Interior' | 'Safety' | 'Performance' | 'Other'
 type GalleryGroupState = { files: File[]; metas: GalleryMetaRow[] }
 type GalleryErrorsByType = Partial<Record<GalleryType, Record<number, string>>>
+
+type ExistingGalleryImage = {
+  carImageId: number
+  title: string
+  description: string
+  imageUrl: string
+  imageType: GalleryType
+}
+
+function toAbsoluteImageUrl(input: string): string {
+  const s = String(input ?? '').trim()
+  if (!s) return ''
+  if (s.startsWith('http://') || s.startsWith('https://')) return s
+  if (s.startsWith('/')) return `${env.VITE_API_BASE_URL}${s}`
+  // fallback: treat as relative to API base
+  return `${env.VITE_API_BASE_URL}/${s.replace(/^\/+/, '')}`
+}
 
 type AdminShowroom = {
   showroomId: number
@@ -35,8 +53,7 @@ const GALLERY_GROUPS: Array<{
   {
     type: 'Color',
     label: 'Màu xe',
-    hint: 'ImageType = Color. Mỗi ảnh tương ứng 1 màu; Title = tên màu.',
-    requireTitle: true,
+    hint: 'ImageType = Color. Mỗi ảnh tương ứng 1 màu (Title/Description tuỳ chọn).',
     defaultTitlePlaceholder: 'Tên màu (VD: Đỏ đô)',
   },
   { type: 'Overview', label: 'Tổng quan', hint: 'ImageType = Overview.' },
@@ -88,6 +105,16 @@ export function CarsNewPage({ mode = 'create', carId }: { mode?: 'create' | 'edi
   const [featureIds, setFeatureIds] = useState('')
 
   const [mainImage, setMainImage] = useState<File | null>(null)
+  const [existingMainImageUrl, setExistingMainImageUrl] = useState<string>('')
+  const [existingGallery, setExistingGallery] = useState<Record<GalleryType, ExistingGalleryImage[]>>(() => ({
+    Color: [],
+    Overview: [],
+    Exterior: [],
+    Interior: [],
+    Safety: [],
+    Performance: [],
+    Other: [],
+  }))
   const [gallery, setGallery] = useState<Record<GalleryType, GalleryGroupState>>(() => ({
     Color: { files: [], metas: [] },
     Overview: { files: [], metas: [] },
@@ -213,6 +240,9 @@ export function CarsNewPage({ mode = 'create', carId }: { mode?: 'create' | 'edi
     setCondition(((d?.Condition ?? d?.condition) === 'Used' ? 'Used' : 'New') as any)
     setStatus(((d?.Status ?? d?.status) ?? 'Available') as any)
 
+    const mainUrl = String(d?.ImageUrl ?? d?.imageUrl ?? '')
+    setExistingMainImageUrl(toAbsoluteImageUrl(mainUrl))
+
     const showroomDetails = (d?.ShowroomDetails ?? d?.showroomDetails ?? []) as any[]
     if (Array.isArray(showroomDetails) && showroomDetails.length) {
       const mapped = showroomDetails
@@ -263,7 +293,64 @@ export function CarsNewPage({ mode = 'create', carId }: { mode?: 'create' | 'edi
         }))
       )
     }
+
+    // Existing gallery images (cannot prefill File inputs, so render previews + allow edit/delete)
+    const galleryGroups = (d?.GalleryImages ?? d?.galleryImages ?? []) as any[]
+    if (Array.isArray(galleryGroups)) {
+      const next: Record<GalleryType, ExistingGalleryImage[]> = {
+        Color: [],
+        Overview: [],
+        Exterior: [],
+        Interior: [],
+        Safety: [],
+        Performance: [],
+        Other: [],
+      }
+
+      const allowedTypes = new Set<GalleryType>(['Color', 'Overview', 'Exterior', 'Interior', 'Safety', 'Performance', 'Other'])
+      for (const g of galleryGroups) {
+        const rawType = String(g?.Category ?? g?.category ?? '')
+        const imageType = (allowedTypes.has(rawType as GalleryType) ? (rawType as GalleryType) : 'Other') as GalleryType
+        const images = (g?.Images ?? g?.images ?? []) as any[]
+        if (!Array.isArray(images)) continue
+
+        for (const im of images) {
+          const idNum = Number(im?.CarImageId ?? im?.carImageId ?? 0)
+          const imageUrl = String(im?.ImageUrl ?? im?.imageUrl ?? '')
+          if (!idNum || !imageUrl) continue
+          next[imageType].push({
+            carImageId: idNum,
+            title: String(im?.Title ?? im?.title ?? ''),
+            description: String(im?.Description ?? im?.description ?? ''),
+            imageUrl: toAbsoluteImageUrl(imageUrl),
+            imageType,
+          })
+        }
+      }
+      setExistingGallery(next)
+    }
   }, [detailQ.data, mode])
+
+  const updateExistingImageM = useMutation({
+    mutationFn: async (payload: { imageId: number; title: string; description: string }) => {
+      const fd = new FormData()
+      fd.append('Title', payload.title ?? '')
+      fd.append('Description', payload.description ?? '')
+      const res = await http.put(`/api/admin/cars/images/${payload.imageId}/details`, fd)
+      return res.data as any
+    },
+    onSuccess: () => toast.success('Đã cập nhật thông tin ảnh'),
+    onError: (e) => toast.error(getErrorMessage(e)),
+  })
+
+  const deleteExistingImageM = useMutation({
+    mutationFn: async (imageId: number) => {
+      const res = await http.delete(`/api/admin/cars/delete-image/${imageId}`)
+      return res.data as any
+    },
+    onSuccess: () => toast.success('Đã xoá ảnh'),
+    onError: (e) => toast.error(getErrorMessage(e)),
+  })
 
   const flattenedGallery = useMemo(() => {
     const files: File[] = []
@@ -383,30 +470,7 @@ export function CarsNewPage({ mode = 'create', carId }: { mode?: 'create' | 'edi
     mutationFn: async () => {
       setGalleryErrors({})
 
-      // Validate ảnh phụ:
-      // - Color: bắt buộc Title + Description
-      // - Nhóm khác: bắt buộc Description (Title tuỳ chọn)
-      if (flattenedGallery.files.length > 0) {
-        const errsByType: GalleryErrorsByType = {}
-        for (const gg of GALLERY_GROUPS) {
-          const st = gallery[gg.type]
-          if (!st.files.length) continue
-          const errs: Record<number, string> = {}
-          for (let i = 0; i < st.files.length; i++) {
-            const meta = st.metas[i]
-            const missingDesc = !meta?.description?.trim()
-            const missingTitle = gg.requireTitle ? !meta?.title?.trim() : false
-            if (missingTitle && missingDesc) errs[i] = 'Bắt buộc nhập Title và Description'
-            else if (missingTitle) errs[i] = 'Bắt buộc nhập Title'
-            else if (missingDesc) errs[i] = 'Bắt buộc nhập Description'
-          }
-          if (Object.keys(errs).length) errsByType[gg.type] = errs
-        }
-        if (Object.keys(errsByType).length > 0) {
-          setGalleryErrors(errsByType)
-          throw new Error('Ảnh phụ thiếu meta bắt buộc. Vui lòng nhập đủ.')
-        }
-      }
+      // Ảnh phụ: Title/Description là tuỳ chọn (không validate bắt buộc).
 
       const fd = new FormData()
 
@@ -657,13 +721,23 @@ export function CarsNewPage({ mode = 'create', carId }: { mode?: 'create' | 'edi
                     onChange={(e) => setMainImage(e.target.files?.[0] ?? null)}
                     className={ui.control}
                   />
+                  {mode === 'edit' && !mainImage && existingMainImageUrl ? (
+                    <div className="mt-2">
+                      <div className="text-xs text-slate-500 dark:text-zinc-400">Ảnh hiện tại:</div>
+                      <img
+                        src={existingMainImageUrl}
+                        alt="Current main"
+                        className="mt-2 h-28 w-auto max-w-full rounded-lg border border-slate-200/70 object-cover dark:border-zinc-800/80"
+                      />
+                    </div>
+                  ) : null}
                   {mainImage ? (
                     <div className="mt-2 text-xs text-slate-500 dark:text-zinc-400">Đã chọn: {mainImage.name}</div>
                   ) : (
                     <div className="mt-2 text-xs text-slate-500 dark:text-zinc-400">Chưa chọn ảnh.</div>
                   )}
                 </div>
-                <div>
+                {/* <div>
                   <label className={ui.label}>FeatureIds (comma-separated)</label>
                   <input
                     value={featureIds}
@@ -672,7 +746,7 @@ export function CarsNewPage({ mode = 'create', carId }: { mode?: 'create' | 'edi
                     className={ui.controlMono}
                   />
                   <div className="mt-2 text-xs text-slate-500 dark:text-zinc-400">Dùng để gắn nhanh các feature có sẵn.</div>
-                </div>
+                </div> */}
               </div>
             </div>
           </section>
@@ -928,6 +1002,7 @@ export function CarsNewPage({ mode = 'create', carId }: { mode?: 'create' | 'edi
             {GALLERY_GROUPS.map((group) => {
               const st = gallery[group.type]
               const errs = galleryErrors[group.type] ?? {}
+              const existed = existingGallery[group.type] ?? []
               return (
                       <div
                         key={group.type}
@@ -942,6 +1017,96 @@ export function CarsNewPage({ mode = 'create', carId }: { mode?: 'create' | 'edi
                             {group.hint ? <div className="mt-1 text-xs text-slate-500 dark:text-zinc-400">{group.hint}</div> : null}
                           </div>
                         </div>
+
+                  {mode === 'edit' && existed.length > 0 ? (
+                    <div className="mt-4 space-y-3">
+                      <div className="text-xs font-medium text-slate-700 dark:text-zinc-200">Ảnh đang có</div>
+                      {existed.map((img, idx) => (
+                        <div
+                          key={img.carImageId}
+                          className="rounded-lg border border-slate-200/70 bg-slate-50/70 p-3 dark:border-zinc-800/80 dark:bg-zinc-900/20"
+                        >
+                          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                            <div className="flex min-w-0 flex-1 gap-3">
+                              <img
+                                src={img.imageUrl}
+                                alt={img.title || `image-${img.carImageId}`}
+                                className="h-20 w-28 flex-none rounded-md border border-slate-200/70 object-cover dark:border-zinc-800/80"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate text-sm font-medium text-slate-900 dark:text-zinc-100">
+                                  #{img.carImageId}
+                                </div>
+                                <div className="mt-1 grid grid-cols-1 gap-2 md:grid-cols-12">
+                                  <input
+                                    value={img.title}
+                                    onChange={(e) =>
+                                      setExistingGallery((prev) => ({
+                                        ...prev,
+                                        [group.type]: prev[group.type].map((x, i) =>
+                                          i === idx ? { ...x, title: e.target.value } : x
+                                        ),
+                                      }))
+                                    }
+                                    placeholder={group.defaultTitlePlaceholder ?? 'Title'}
+                                    className={'md:col-span-4 ' + ui.control}
+                                  />
+                                  <textarea
+                                    value={img.description}
+                                    onChange={(e) =>
+                                      setExistingGallery((prev) => ({
+                                        ...prev,
+                                        [group.type]: prev[group.type].map((x, i) =>
+                                          i === idx ? { ...x, description: e.target.value } : x
+                                        ),
+                                      }))
+                                    }
+                                    placeholder="Description"
+                                    className={'md:col-span-8 ' + ui.textarea}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                disabled={updateExistingImageM.isPending}
+                                onClick={() =>
+                                  updateExistingImageM.mutate({
+                                    imageId: img.carImageId,
+                                    title: img.title,
+                                    description: img.description,
+                                  })
+                                }
+                                className={ui.btn}
+                              >
+                                Lưu meta
+                              </button>
+                              <button
+                                type="button"
+                                disabled={deleteExistingImageM.isPending}
+                                onClick={async () => {
+                                  deleteExistingImageM.mutate(img.carImageId, {
+                                    onSuccess: () => {
+                                      setExistingGallery((prev) => ({
+                                        ...prev,
+                                        [group.type]: prev[group.type].filter((x) => x.carImageId !== img.carImageId),
+                                      }))
+                                    },
+                                  })
+                                }}
+                                className={ui.btnDanger}
+                                title="Xoá ảnh"
+                              >
+                                Xoá
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
 
                   <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>

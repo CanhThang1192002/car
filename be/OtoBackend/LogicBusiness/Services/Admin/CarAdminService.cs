@@ -248,7 +248,7 @@ namespace LogicBusiness.Services.Admin
             int targetShowroomId = (userRole != "Admin" && userShowroomId.HasValue) ? userShowroomId.Value : dto.ShowroomId;
 
             // Trạng thái theo phân quyền
-            CarStatus finalStatus = (userRole == "Admin" || userRole == "ShowroomManager")
+            CarStatus finalStatus = (userRole == "Admin" || userRole == "ShowroomManager" || userRole == "SalesManager")
                                     ? (dto.Status ?? oldCar.Status ?? CarStatus.Draft)
                                     : CarStatus.PendingApproval;
 
@@ -305,13 +305,6 @@ namespace LogicBusiness.Services.Admin
             {
                 if (galleryMetas.Count != dto.GalleryFiles.Count)
                     return (false, "GalleryMetasJson phải có số phần tử đúng bằng số file trong GalleryFiles.", null);
-
-                for (int i = 0; i < galleryMetas.Count; i++)
-                {
-                    var meta = galleryMetas[i];
-                    if (meta == null || string.IsNullOrWhiteSpace(meta.Title) || string.IsNullOrWhiteSpace(meta.Description))
-                        return (false, $"Ảnh phụ #{i + 1} thiếu Title hoặc Description.", null);
-                }
             }
 
             Car? updated = null;
@@ -619,7 +612,7 @@ namespace LogicBusiness.Services.Admin
             int targetShowroomId = (userRole != "Admin" && userShowroomId.HasValue) ? userShowroomId.Value : dto.ShowroomId;
 
             // Trạng thái theo phân quyền
-            CarStatus finalStatus = (userRole == "Admin" || userRole == "ShowroomManager")
+            CarStatus finalStatus = (userRole == "Admin" || userRole == "ShowroomManager" || userRole == "SalesManager")
                                     ? (dto.Status ?? CarStatus.Available)
                                     : CarStatus.PendingApproval;
 
@@ -702,15 +695,6 @@ namespace LogicBusiness.Services.Admin
                 if (galleryMetas.Count != dto.GalleryFiles.Count)
                 {
                     return (false, "GalleryMetasJson phải có số phần tử đúng bằng số file trong GalleryFiles.", null);
-                }
-
-                for (int i = 0; i < galleryMetas.Count; i++)
-                {
-                    var meta = galleryMetas[i];
-                    if (meta == null || string.IsNullOrWhiteSpace(meta.Title) || string.IsNullOrWhiteSpace(meta.Description))
-                    {
-                        return (false, $"Ảnh phụ #{i + 1} thiếu Title hoặc Description.", null);
-                    }
                 }
             }
 
@@ -872,8 +856,8 @@ namespace LogicBusiness.Services.Admin
                             if (file == null || file.Length == 0) continue;
 
                             var meta = (i < galleryMetas.Count) ? galleryMetas[i] : null;
-                            if (meta == null || string.IsNullOrWhiteSpace(meta.Title) || string.IsNullOrWhiteSpace(meta.Description))
-                                throw new InvalidOperationException($"Ảnh phụ #{i + 1} thiếu Title hoặc Description.");
+                            if (meta == null)
+                                throw new InvalidOperationException($"GalleryMetasJson thiếu phần tử ở vị trí #{i + 1} (không khớp số lượng ảnh).");
 
                             string imagePath = await FileHelper.UploadFileAsync(file, subFolder, targetName);
                             string fileHash = FileHelper.GetFileHash(file);
@@ -885,8 +869,8 @@ namespace LogicBusiness.Services.Admin
                                 Is360Degree = false,
                                 IsMainImage = meta?.IsMainImage ?? false,
                                 ImageType = string.IsNullOrWhiteSpace(meta?.ImageType) ? null : meta!.ImageType!.Trim(),
-                                Title = meta.Title.Trim(),
-                                Description = meta.Description.Trim(),
+                                Title = string.IsNullOrWhiteSpace(meta.Title) ? null : meta.Title.Trim(),
+                                Description = string.IsNullOrWhiteSpace(meta.Description) ? null : meta.Description.Trim(),
                                 FileHash = string.IsNullOrWhiteSpace(fileHash) ? null : fileHash,
                                 CreatedAt = DateTime.Now
                             });
@@ -970,12 +954,12 @@ namespace LogicBusiness.Services.Admin
             car.UpdatedAt = DateTime.Now;
 
             // 6.LOGIC TRẠNG THÁI THÔNG MINH (Lưu nháp vs Gửi duyệt)
-            if (userRole == "Admin" || userRole == "ShowroomManager")
+            if (userRole == "Admin" || userRole == "ShowroomManager" || userRole == "SalesManager")
             {
                 // Sếp sửa thì cho phép sếp quyết định trạng thái luôn (nếu sếp có gửi Status lên)
                 if (dto.Status.HasValue) car.Status = dto.Status.Value;
             }
-            else if (userRole == "ShowroomSales" || userRole == "Staff")
+            else if (userRole == "ShowroomSales" || userRole == "Sales" || userRole == "Technician" || userRole == "Staff")
             {
                 // Nhân viên: Nếu bấm "Nộp bài" (Status = PendingApproval) thì mới gửi sếp
                 // Còn lại (Lưu nháp hoặc không chọn) thì cứ để là Draft cho lính sửa tiếp
@@ -1451,7 +1435,7 @@ namespace LogicBusiness.Services.Admin
                 return (false, "Xe này đang bán rồi, duyệt gì nữa ní!");
 
             // 👇 BÍ KÍP: CHẶN QUẢN LÝ DUYỆT LÁO XE CHI NHÁNH KHÁC
-            if (userRole == "ShowroomManager" && userShowroomId.HasValue)
+            if ((userRole == "ShowroomManager" || userRole == "SalesManager") && userShowroomId.HasValue)
             {
                 var inventories = await _inventoryRepo.GetInventoriesByCarIdAsync(carId);
                 // Nếu con xe này KHÔNG nằm trong Showroom của Quản lý đó -> Chửi!

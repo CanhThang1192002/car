@@ -80,11 +80,11 @@ namespace LogicBusiness.Services.Admin
         public async Task<(bool Success, string Message)> CreateStaffAccountAsync(StaffAccountRequestDto request, string currentUserRole, int? currentUserShowroomId)
         {
             // 👇 BÍ KÍP PHÂN QUYỀN Ở ĐÂY 👇
-            if (currentUserRole == "ShowroomManager")
+            if (currentUserRole == "ShowroomManager" || currentUserRole == "SalesManager")
             {
-                // Quản lý không được phép tạo 1 Quản lý khác
-                if (request.Role != "ShowroomSales")
-                    return (false, "Sếp chỉ được phép tạo tài khoản cho Nhân viên (Sales) thôi ạ!");
+                // Quản lý chỉ được phép tạo nhân viên sale trong chi nhánh của mình
+                if (request.Role != "ShowroomSales" && request.Role != "Sales")
+                    return (false, "Sếp chỉ được phép tạo tài khoản cho nhân viên Sale thôi ạ!");
 
                 // Quản lý không được đưa nhân viên sang chi nhánh khác
                 if (request.ShowroomId != currentUserShowroomId)
@@ -95,7 +95,7 @@ namespace LogicBusiness.Services.Admin
                 return (false, "Bạn không có quyền thực hiện chức năng này!");
             }
 
-            var validRoles = new List<string> { "ShowroomManager", "ShowroomSales" };
+            var validRoles = new List<string> { "ShowroomManager", "ShowroomSales", "SalesManager", "Sales", "Technician" };
             if (!validRoles.Contains(request.Role))
                 return (false, "Quyền (Role) không hợp lệ.");
 
@@ -295,7 +295,7 @@ namespace LogicBusiness.Services.Admin
             if (user == null || user.IsDeleted) return (false, "Không tìm thấy người dùng hoặc đã bị xóa!");
 
             // Only staff roles editable here
-            var validRoles = new List<string> { "ShowroomManager", "ShowroomSales" };
+            var validRoles = new List<string> { "ShowroomManager", "ShowroomSales", "SalesManager", "Sales", "Technician" };
             if (!validRoles.Contains(request.Role)) return (false, "Quyền (Role) không hợp lệ.");
 
             var showroom = await _showroomRepository.GetByIdAsync(request.ShowroomId);
@@ -303,17 +303,17 @@ namespace LogicBusiness.Services.Admin
 
             string safeRole = currentUserRole?.Trim().ToLower() ?? "";
 
-            if (safeRole == "showroommanager")
+            if (safeRole == "showroommanager" || safeRole == "salesmanager")
             {
-                // Manager can only edit Sales in own showroom
-                if (user.Role == "Admin" || user.Role == "ShowroomManager")
+                // Manager can only edit non-manager staff in own showroom
+                if (user.Role == "Admin" || user.Role == "ShowroomManager" || user.Role == "SalesManager")
                     return (false, "Sếp không có quyền chỉnh sửa cấp trên hoặc đồng cấp!");
 
                 if (!currentUserShowroomId.HasValue || user.ShowroomId != currentUserShowroomId.Value)
                     return (false, "Nhân viên này thuộc chi nhánh khác, sếp không quản lý được!");
 
-                if (request.Role != "ShowroomSales")
-                    return (false, "Sếp chỉ được phép gán quyền Nhân viên (Sales) thôi ạ!");
+                if (request.Role != "ShowroomSales" && request.Role != "Sales")
+                    return (false, "Sếp chỉ được phép gán quyền nhân viên Sale thôi ạ!");
 
                 if (request.ShowroomId != currentUserShowroomId.Value)
                     return (false, "Sếp chỉ được phép chỉnh sửa nhân viên trong Showroom của mình!");
